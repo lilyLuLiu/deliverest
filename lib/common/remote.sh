@@ -7,17 +7,21 @@
 remote_required () {
     local validate=1
 
-    [[ -z "${TARGET_HOST+x}" ]] \
-        && echo "TARGET_HOST required" \
-        && validate=0
+    if [[ -n "${SSH_CONFIG_FILE}" && -n "${SSH_CONFIG_TARGET_NAME}" ]]; then
+        validate=0
+    else
+        [[ -z "${TARGET_HOST+x}" ]] \
+            && echo "TARGET_HOST required" \
+            && validate=0
 
-    [[ -z "${TARGET_HOST_USERNAME+x}" ]] \
-        && echo "TARGET_HOST_USERNAME required" \
-        && validate=0
+        [[ -z "${TARGET_HOST_USERNAME+x}" ]] \
+            && echo "TARGET_HOST_USERNAME required" \
+            && validate=0
 
-    [[ -z "${TARGET_HOST_KEY_PATH+x}" && -z "${TARGET_HOST_PASSWORD+x}" ]] \
-        && echo "TARGET_HOST_KEY_PATH or TARGET_HOST_PASSWORD required" \
-        && validate=0
+        [[ -z "${TARGET_HOST_KEY_PATH+x}" || -z "${TARGET_HOST_PASSWORD+x}" ]] \
+            && echo "TARGET_HOST_KEY_PATH or TARGET_HOST_PASSWORD required" \
+            && validate=0
+    fi
 
     return $validate
 }
@@ -63,7 +67,7 @@ check_connection() {
 # Define remote connection
 uri () {
     local remote="${TARGET_HOST_USERNAME}@${TARGET_HOST}"
-    if [[ ! -z "${TARGET_HOST_DOMAIN+x}" ]]; then
+    if [[ -n "${TARGET_HOST_DOMAIN}" ]]; then
         remote="${TARGET_HOST_USERNAME}@${TARGET_HOST_DOMAIN}@${TARGET_HOST}"
     fi
     echo "${remote}" 
@@ -73,10 +77,13 @@ uri () {
 # $1 local path
 # $2 remote path
 scp_to_cmd () {
-    if [[ ! -z "${TARGET_HOST_KEY_PATH+x}" ]]; then
-        echo "scp -r $(connect_options) -i ${TARGET_HOST_KEY_PATH} ${1} $(uri):${2}"
+    cmd="scp -r $(connect_options) "
+    if [[ -n "${SSH_CONFIG_FILE}" && -n "${SSH_CONFIG_TARGET_NAME}" ]]; then
+        echo "${cmd} -F ${SSH_CONFIG_FILE} ${SSH_CONFIG_TARGET_NAME}"
+    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+        echo "${cmd} -i ${TARGET_HOST_KEY_PATH} ${1} $(uri):${2}"
     else
-        echo "sshpass -p ${TARGET_HOST_PASSWORD} scp -r $(connect_options) ${1} $(uri):${2}" 
+        echo "sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} ${1} $(uri):${2}" 
     fi
 }
 
@@ -84,21 +91,27 @@ scp_to_cmd () {
 # $1 remote path
 # $2 local path
 scp_from_cmd () {
-    if [[ ! -z "${TARGET_HOST_KEY_PATH+x}" ]]; then
-        echo "scp -r $(connect_options) -i ${TARGET_HOST_KEY_PATH} $(uri):${1} ${2}"
+    cmd="scp -r $(connect_options) "
+    if [[ -n "${SSH_CONFIG_FILE}" && -n "${SSH_CONFIG_TARGET_NAME}" ]]; then
+        echo "${cmd} -F ${SSH_CONFIG_FILE} ${SSH_CONFIG_TARGET_NAME}"
+    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+        echo "${cmd} -i ${TARGET_HOST_KEY_PATH} $(uri):${1} ${2}"
     else
-        echo "sshpass -p ${TARGET_HOST_PASSWORD} scp -r $(connect_options) $(uri):${1} ${2}" 
+        echo "sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} $(uri):${1} ${2}" 
     fi
 }
 
 # Generate SSH command
 ssh_cmd () {
-    cmd=""
-    if [[ ! -z "${TARGET_HOST_KEY_PATH+x}" ]]; then
-        cmd="ssh $(connect_options) -i ${TARGET_HOST_KEY_PATH} $(uri) "
+    cmd="ssh $(connect_options) "
+    if [[ -n "${SSH_CONFIG_FILE}" && -n "${SSH_CONFIG_TARGET_NAME}" ]]; then
+        cmd+="-F ${SSH_CONFIG_FILE} ${SSH_CONFIG_TARGET_NAME}"
+    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+        cmd+="-i ${TARGET_HOST_KEY_PATH} $(uri) "
     else
-        cmd="sshpass -p ${TARGET_HOST_PASSWORD} ssh $(connect_options) $(uri) "
+        cmd="sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} $(uri)"
     fi
+    
     # On AWS MacOS ssh session is not recognized as expected
     if [[ ${OS} == 'darwin' ]]; then
         cmd+="sudo su - ${TARGET_HOST_USERNAME} -c \"PATH=\$PATH:/usr/local/bin && $@\""
