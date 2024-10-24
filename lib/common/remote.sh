@@ -27,7 +27,9 @@ connect_options() {
     options="$options -o UserKnownHostsFile=/dev/null"
     options="$options -o ServerAliveInterval=30"
     options="$options -o ServerAliveCountMax=1200"
-    options="$options -o BatchMode=yes"
+    if [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
+        options="$options -o BatchMode=yes"
+    fi
     options="$options -o ConnectTimeout=3"
     echo $options
 }
