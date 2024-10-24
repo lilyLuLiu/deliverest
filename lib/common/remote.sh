@@ -85,7 +85,7 @@ check_connection() {
 # Define remote connection
 uri () {
     local remote="${TARGET_HOST_USERNAME}@${TARGET_HOST}"
-    if [[ -n "${TARGET_HOST_DOMAIN}" ]]; then
+    if [[ -n "${TARGET_HOST_DOMAIN+x}" ]]; then
         remote="${TARGET_HOST_USERNAME}@${TARGET_HOST_DOMAIN}@${TARGET_HOST}"
     fi
     echo "${remote}" 
@@ -96,9 +96,9 @@ uri () {
 # $2 remote path
 scp_to_cmd () {
     cmd="scp -r $(connect_options) "
-    if [[ -n "${BASTION_HOST}" && -n "${BASTION_HOST_USERNAME}" ]]; then
+    if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]]; then
         echo "${cmd} -F ssh_config ${1} target_host:${2}"
-    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+    elif [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
         echo "${cmd} -i ${TARGET_HOST_KEY_PATH} ${1} $(uri):${2}"
     else
         echo "sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} ${1} $(uri):${2}" 
@@ -110,9 +110,9 @@ scp_to_cmd () {
 # $2 local path
 scp_from_cmd () {
     cmd="scp -r $(connect_options) "
-    if [[ -n "${BASTION_HOST}" && -n "${BASTION_HOST_USERNAME}" ]]; then
+    if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]]; then
         echo "${cmd} -F ssh_config target_host:${1} ${2} "
-    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+    elif [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
         echo "${cmd} -i ${TARGET_HOST_KEY_PATH} $(uri):${1} ${2}"
     else
         echo "sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} $(uri):${1} ${2}" 
@@ -122,9 +122,9 @@ scp_from_cmd () {
 # Generate SSH command
 ssh_cmd () {
     cmd="ssh $(connect_options) "
-    if [[ -n "${BASTION_HOST}" && -n "${BASTION_HOST_USERNAME}" ]]; then
+    if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]]; then
         cmd+="-F ssh_config target_host "
-    elif [[ -n "${TARGET_HOST_KEY_PATH}" ]]; then
+    elif [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
         cmd+="-i ${TARGET_HOST_KEY_PATH} $(uri) "
     else
         cmd="sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} $(uri) "
@@ -137,4 +137,53 @@ ssh_cmd () {
         cmd+=" $@"
     fi
     echo "${cmd}"
+}
+
+exec_scp_to() {
+    repeats=10
+    while [[ $repeats -gt 0 ]]
+    do
+        $(scp_to_cmd $1 $2)
+        if [[ $? -gt 0 ]] 
+        then 
+            echo "Exec scp_to failed, try again, reps remaining: $repeats"
+            ((repeats--))
+            sleep 5
+        else
+            break
+        fi
+    done
+}
+
+exec_scp_from() {
+    repeats=10
+    while [[ $repeats -gt 0 ]]
+    do
+        $(scp_from_cmd $1 $2)
+        if [[ $? -gt 0 ]] 
+        then 
+            echo "Exec scp_from failed, try again, reps remaining: $repeats"
+            ((repeats--))
+            sleep 5
+        else
+            break
+        fi
+    done
+}
+
+exec_ssh_cmd() {
+    repeats=10
+    while [[ $repeats -gt 0 ]]
+    do
+        $(ssh_cmd $@)
+        if [[ $? -gt 0 ]] 
+        then 
+            echo "Exec ssh command failed:$1"
+            echo "try again, reps remaining: $repeats"
+            ((repeats--))
+            sleep 5
+        else
+            break
+        fi
+    done
 }

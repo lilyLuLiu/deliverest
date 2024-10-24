@@ -21,7 +21,7 @@ if [[ ! remote_required ]] || [[ ! mamp_required ]] || [[ -z "${ASSETS_FOLDER+x}
 fi
 
 # Create ssh config file is using proxy connection
-if [[ -n "${BASTION_HOST}" && -n "${BASTION_HOST_USERNAME}" ]];then
+if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]];then
     ssh_config_file
 fi
 
@@ -37,14 +37,15 @@ fi
 # Create execution folder 
 echo "Create assets folder on target"
 TARGET_FOLDER="${TARGET_FOLDER:-"deliverest-${RANDOM}"}"
-$(ssh_cmd "mkdir -p ${TARGET_FOLDER}")
+exec_ssh_cmd "mkdir -p ${TARGET_FOLDER}"
 
 # Copy asset
 echo "Copy assets folder to target"
-$(scp_to_cmd "${ASSETS_FOLDER}/*" "${TARGET_FOLDER}/")
+exec_scp_to "${ASSETS_FOLDER}/*" "${TARGET_FOLDER}/"
+
 
 # Exec command
-$(ssh_cmd "$@")
+exec_ssh_cmd "$@"
 
 # If remote workload includes a reboot this is the only way to ensure we can 
 # copy results if any or cleanup
@@ -60,11 +61,11 @@ fi
 if [[ ! -z "${TARGET_RESULTS+x}" ]]; then
     # If exec create some reuslts we define the env and they will be copied to OUTPUT_FOLDER
     OUTPUT_FOLDER="${OUTPUT_FOLDER:-"/output"}"
-    $(scp_from_cmd "${TARGET_FOLDER}/${TARGET_RESULTS}" "${OUTPUT_FOLDER}/")
+    exec_scp_from "${TARGET_FOLDER}/${TARGET_RESULTS}" "${OUTPUT_FOLDER}/"
 fi
 
 if [ "${TARGET_CLEANUP:-}" = "true" ]; then
     # This will create the cmd based on OS env with the right syntax
     cmd="$(remove_folder ${TARGET_FOLDER})"
-    $(ssh_cmd ${cmd})
+    exec_ssh_cmd ${cmd}
 fi
