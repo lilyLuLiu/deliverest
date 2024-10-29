@@ -40,19 +40,19 @@ Host proxy_host
     StrictHostKeyChecking no
     HostName ${BASTION_HOST}
     User ${BASTION_HOST_USERNAME}
-    IdentityFile ${BASTION_HOST_KEY_PATH}
+
 
 Host target_host
     HostName ${TARGET_HOST}
     User ${TARGET_HOST_USERNAME}
-    IdentityFile ${TARGET_HOST_KEY_PATH}
     ProxyJump proxy_host
+
 EOF
-    if [[ -z ${TARGET_HOST_KEY_PATH+x} ]]; then
-        sed -i"" -e '9d' ssh_config
+    if [[ -n ${TARGET_HOST_KEY_PATH+x} ]]; then
+        sed -i"" -e "11 i\    IdentityFile $TARGET_HOST_KEY_PATH" ssh_config
     fi
-    if [[ -z ${BASTION_HOST_KEY_PATH+x} ]]; then
-        sed -i"" -e '4d' ssh_config
+    if [[ -n ${BASTION_HOST_KEY_PATH+x} ]]; then
+        sed -i"" -e "5 i\    IdentityFile ${BASTION_HOST_KEY_PATH}" ssh_config
     fi
     cat ssh_config
 }
