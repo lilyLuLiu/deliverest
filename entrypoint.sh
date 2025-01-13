@@ -35,7 +35,7 @@ if [ "${CHECK_CONNECTION:-}" = "true" ]; then
     fi
 fi
 
-
+path_add
 # Create execution folder 
 echo "Create assets folder on target"
 TARGET_FOLDER="${TARGET_FOLDER:-"deliverest-${RANDOM}"}"

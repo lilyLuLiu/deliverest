@@ -104,6 +104,21 @@ scp_from_cmd () {
     fi
 }
 
+path_add () {
+    cmd="ssh $(connect_options) "
+    if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]]; then
+        cmd+="-F ssh_config target_host "
+    elif [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
+        cmd+="-i ${TARGET_HOST_KEY_PATH} $(uri) "
+    else
+        cmd="sshpass -p ${TARGET_HOST_PASSWORD} ${cmd} $(uri) "
+    fi
+    if [[ ${OS} == 'darwin' ]]; then        
+        cmd+="sudo su - ${TARGET_HOST_USERNAME} -c "echo 'export PATH=\$PATH:/path/to/bash' >> ~/.bashrc && source ~/.bashrc""
+        echo "${cmd}"
+    fi
+}
+
 # Generate SSH command
 ssh_cmd () {
     cmd="ssh $(connect_options) "
@@ -116,11 +131,7 @@ ssh_cmd () {
     fi
     
     # On AWS MacOS ssh session is not recognized as expected
-    if [[ ${OS} == 'darwin' ]]; then
-        cmd+="sudo su - ${TARGET_HOST_USERNAME} -c \"PATH=\$PATH:/usr/local/bin && $@\""
-    else 
-        cmd+=" $@"
-    fi
+    cmd+=" $@"
     echo "${cmd}"
 }
 
@@ -132,6 +143,8 @@ exec_and_retry() {
     local command="$@"
 
     # Run the command, and save the exit code
+    echo "running command:"
+    echo $command
     $command
     local exit_code=$?
 
