@@ -106,7 +106,7 @@ scp_from_cmd () {
 
 # Generate SSH command
 ssh_cmd () {
-    cmd="ssh $(connect_options) "
+    cmd="ssh -t $(connect_options) "
     if [[ -n "${BASTION_HOST+x}" && -n "${BASTION_HOST_USERNAME+x}" ]]; then
         cmd+="-F ssh_config target_host "
     elif [[ -n "${TARGET_HOST_KEY_PATH+x}" ]]; then
